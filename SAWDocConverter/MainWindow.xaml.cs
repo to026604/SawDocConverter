@@ -54,27 +54,33 @@ namespace SAWDocConverter
             xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(4); //SAWSORT tab in 780
 
             int maxRows = 250; //max number of parameters
-            int headerOffset = 4; //rows allocated for header
+            int headerOffset = 5; // 4 rows allocated for header + 1-based index for spreadsheet
             char activeCol = 'A';
 
             List<string> numList = ExcelColtoList(xlWorkSheet, activeCol, maxRows, headerOffset, true);
+            List<List<string>> tableList = new List<List<string>>();
+            tableList.Add(numList);
 
-            maxRows = numList.Count() + headerOffset; //update max rows
+            maxRows = numList.Count() + headerOffset; //update max rows based on number of params found in first column, 1-based index
 
+            for (int i = 1; i < 6; i++)
+            {
+                activeCol = (char)(activeCol + 1); //next column
+                tableList.Add(ExcelColtoList(xlWorkSheet, activeCol, maxRows, headerOffset, false));
+            }
 
 
 
             //Test Code
             ExcelShowCellContents(xlWorkSheet, "E3"); //1st test type column is E3, 2nd column is H3...
 
-
             //Cleanup
             xlWorkBook.Close(true, misValue, misValue);
             xlApp.Quit();
 
-            releaseObject(xlWorkSheet);
-            releaseObject(xlWorkBook);
-            releaseObject(xlApp);
+            ReleaseObject(xlWorkSheet);
+            ReleaseObject(xlWorkBook);
+            ReleaseObject(xlApp);
 
         }
 
@@ -85,8 +91,8 @@ namespace SAWDocConverter
 
         private static List<string> ExcelColtoList(Excel.Worksheet xlWorkSheet, char activeCol, int maxRows, int headerOffset, bool trimNulls)
         {
-            int activeRow = headerOffset + 1;
-            
+            int activeRow = headerOffset; //1-based index
+
             string activeCell = activeCol + activeRow.ToString();
             string cellContents = xlWorkSheet.get_Range(activeCell).Value2.ToString();
             List<string> numList = new List<string>();
@@ -116,7 +122,7 @@ namespace SAWDocConverter
             return numList;
         }
 
-        private void releaseObject(object obj)
+        private static void ReleaseObject(object obj)
         {
             try
             {
