@@ -57,7 +57,7 @@ namespace SAWDocConverter
             int headerOffset = 4; //rows allocated for header
             char activeCol = 'A';
 
-            List<string> numList = ExcelColtoList(xlWorkSheet, activeCol, maxRows, headerOffset);
+            List<string> numList = ExcelColtoList(xlWorkSheet, activeCol, maxRows, headerOffset, true);
 
             maxRows = numList.Count() + headerOffset; //update max rows
 
@@ -83,7 +83,7 @@ namespace SAWDocConverter
             System.Windows.MessageBox.Show(xlWorkSheet.get_Range(cell).Value2.ToString());
         }
 
-        private static List<string> ExcelColtoList(Excel.Worksheet xlWorkSheet, char activeCol, int maxRows, int headerOffset)
+        private static List<string> ExcelColtoList(Excel.Worksheet xlWorkSheet, char activeCol, int maxRows, int headerOffset, bool trimNulls)
         {
             int activeRow = headerOffset + 1;
             
@@ -110,7 +110,8 @@ namespace SAWDocConverter
 
             }
 
-            numList.RemoveAll(item => item == null);
+            if (trimNulls) { numList.RemoveAll(item => item == null); }
+
             System.Windows.MessageBox.Show(numList.Last());
             return numList;
         }
