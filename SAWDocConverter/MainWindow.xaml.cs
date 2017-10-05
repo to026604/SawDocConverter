@@ -25,9 +25,28 @@ namespace SAWDocConverter
     /// </summary>
     public partial class MainWindow : System.Windows.Window
     {
-        private readonly List<string> headerTemplate = new List<string> { "Test Number", "Test Name", "Test Units", "Decimal Places", "85030_POSTPILLAR LL", "85030_POSTPILLAR UL" };
+        private readonly List<string> headerTemplate = new List<string> {
+            "Enabled?",
+            "Test Number",
+            "Test Name",
+            "Test Units",
+            "Decimal Places",
+            "Offset",
+            "Failing Soft Bin",
+            "Lower Guardband",
+            "Upper Guardband",
+            "BCS Enable",
+            "Lower CU Tolerance",
+            "Upper CU Tolerance",
+            "Empty Socket LL",
+            "Empty Socket UL",
+            "PAT Lower Sigma Multiplier",
+            "PAT Upper Sigma Multiplier",
+            "85030_POSTPILLAR LL",
+            "85030_POSTPILLAR UL" };
 
         public List<List<string>> activeFile { get; private set; }
+
 
         public MainWindow()
         {
@@ -38,34 +57,13 @@ namespace SAWDocConverter
         {
             StringBuilder sb = new StringBuilder();
 
-            foreach(string s in headerTemplate)
-            {
-                sb.Append(s + ',');
-            }
-            sb.AppendLine();
-
-            for (int i = 0; i < activeFile[0].Count; i++)
-            {
-                for (int j = 0; j < activeFile.Count; j++)
-                {
-                    sb.Append(activeFile[j][i] + ',');
-                }
-
-                sb.AppendLine();
-            }
-
-            //foreach(List<string> list in activeFile)
-            //{
-            //    foreach(string s in list)
-            //    {
-            //        sb.Append(s+',');
-            //    }
-            //    sb.AppendLine();
-            //}
+            AddCSVJunk(activeFile);
+            FormatCSVtoFile(sb);
 
             File.WriteAllText("C:\\Users\\zb024007\\Documents\\SampleCSV.csv", sb.ToString());
 
         }
+
         private void btn_LoadDoc_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog openFileDialog1 = new OpenFileDialog
@@ -85,7 +83,51 @@ namespace SAWDocConverter
                 System.Windows.MessageBox.Show("Failed to open File.");
             }
         }
+        private void AddCSVJunk(List<List<string>> activeFile)
+        {
+            int listSize = activeFile[0].Count;
 
+            activeFile.Insert(0, FillList(listSize, "YES"));
+            activeFile.Insert(5, FillList(listSize, "0"));
+            activeFile.Insert(6, FillList(listSize, "32"));
+            activeFile.Insert(7, FillList(listSize, "0"));
+            activeFile.Insert(8, FillList(listSize, "0"));
+            activeFile.Insert(9, FillList(listSize, "0"));
+            activeFile.Insert(10, FillList(listSize, "0"));
+            activeFile.Insert(11, FillList(listSize, ""));
+            activeFile.Insert(12, FillList(listSize, ""));
+            activeFile.Insert(13, FillList(listSize, "0"));
+            activeFile.Insert(14, FillList(listSize, "0"));
+        }
+
+        private static List<string> FillList(int size, string filler)
+        {
+            List<string> enabledList = new List<string>();
+            for (int i = 0; i < size; i++)
+            {
+                enabledList.Add(filler);
+            }
+
+            return enabledList;
+        }
+        private void FormatCSVtoFile(StringBuilder sb)
+        {
+            foreach (string s in headerTemplate)
+            {
+                sb.Append(s + ',');
+            }
+            sb.AppendLine();
+
+            for (int i = 0; i < activeFile[0].Count; i++)
+            {
+                for (int j = 0; j < activeFile.Count; j++)
+                {
+                    sb.Append(activeFile[j][i] + ',');
+                }
+
+                sb.AppendLine();
+            }
+        }
         private List<List<string>> Parse780(string fn)
         {
             Excel.Application xlApp;
