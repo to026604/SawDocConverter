@@ -25,21 +25,68 @@ namespace SAWDocConverter
     /// </summary>
     public partial class MainWindow : System.Windows.Window
     {
+        private readonly List<string> headerTemplate = new List<string> { "Test Number", "Test Name", "Test Units", "Decimal Places", "85030_POSTPILLAR LL", "85030_POSTPILLAR UL" };
+
+        public List<List<string>> activeFile { get; private set; }
+
         public MainWindow()
         {
             InitializeComponent();
-        }
 
+        }
+        private void btn_CreateCSV_Click(object sender, RoutedEventArgs e)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            foreach(string s in headerTemplate)
+            {
+                sb.Append(s + ',');
+            }
+            sb.AppendLine();
+
+            for (int i = 0; i < activeFile[0].Count; i++)
+            {
+                for (int j = 0; j < activeFile.Count; j++)
+                {
+                    sb.Append(activeFile[j][i] + ',');
+                }
+
+                sb.AppendLine();
+            }
+
+            //foreach(List<string> list in activeFile)
+            //{
+            //    foreach(string s in list)
+            //    {
+            //        sb.Append(s+',');
+            //    }
+            //    sb.AppendLine();
+            //}
+
+            File.WriteAllText("C:\\Users\\zb024007\\Documents\\SampleCSV.csv", sb.ToString());
+
+        }
         private void btn_LoadDoc_Click(object sender, RoutedEventArgs e)
         {
-            OpenFileDialog openFileDialog1 = new OpenFileDialog();
+            OpenFileDialog openFileDialog1 = new OpenFileDialog
+            {
+                InitialDirectory = "C:\\Users\\zb024007\\Documents",
+                Filter = "Excel Files (*.xlsx)|*.xlsx|All files (*.*)|*.*",
+                FilterIndex = 1,
+                RestoreDirectory = true
+            };
+
             if (openFileDialog1.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
-                Parse780(openFileDialog1.FileName.ToString());
+                activeFile = Parse780(openFileDialog1.FileName.ToString());
+            }
+            else
+            {
+                System.Windows.MessageBox.Show("Failed to open File.");
             }
         }
 
-        private void Parse780(string fn)
+        private List<List<string>> Parse780(string fn)
         {
             Excel.Application xlApp;
             Excel.Workbook xlWorkBook;
@@ -63,13 +110,11 @@ namespace SAWDocConverter
 
             maxRows = numList.Count() + headerOffset; //update max rows based on number of params found in first column, 1-based index
 
-            for (int i = 1; i < 6; i++)
+            for (int i = 1; i < 6; i++) //6 columns for param name and limits
             {
                 activeCol = (char)(activeCol + 1); //next column
                 tableList.Add(ExcelColtoList(xlWorkSheet, activeCol, maxRows, headerOffset, false));
             }
-
-
 
             //Test Code
             ExcelShowCellContents(xlWorkSheet, "E3"); //1st test type column is E3, 2nd column is H3...
@@ -82,6 +127,7 @@ namespace SAWDocConverter
             ReleaseObject(xlWorkBook);
             ReleaseObject(xlApp);
 
+            return tableList;
         }
 
         private static void ExcelShowCellContents(Excel.Worksheet xlWorkSheet, string cell)
@@ -139,6 +185,7 @@ namespace SAWDocConverter
                 GC.Collect();
             }
         }
+
 
     }
 }
