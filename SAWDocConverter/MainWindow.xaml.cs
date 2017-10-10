@@ -25,63 +25,71 @@ namespace SAWDocConverter
     /// </summary>
     public partial class MainWindow : System.Windows.Window
     {
-        private readonly List<string> headerTemplate = new List<string> {
-            "Enabled?",
-            "Test Number",
-            "Test Name",
-            "Test Units",
-            "Decimal Places",
-            "Offset",
-            "Failing Soft Bin",
-            "Lower Guardband",
-            "Upper Guardband",
-            "BCS Enable",
-            "Lower CU Tolerance",
-            "Upper CU Tolerance",
-            "Empty Socket LL",
-            "Empty Socket UL",
-            "PAT Lower Sigma Multiplier",
-            "PAT Upper Sigma Multiplier",
-            "85030_POSTPILLAR LL",
-            "85030_POSTPILLAR UL" };
-
-        public List<List<string>> activeFile { get; private set; }
-
+        public List<List<string>> activeSheet { get; private set; }
+        public static Dictionary<string, int> activeBookTestStepDict { get; private set; }
+        //public static List<string> activeSheetAllTestSteps { get; private set; }
+        public static string activeTestStep { get; private set; }
+        public static string activeFilePath { get; private set; }
+        public List<string> activeFileTabNames { get; private set; }
+        public List<string> headerTemplate { get; private set; }
 
         public MainWindow()
         {
             InitializeComponent();
-
         }
         private void btn_CreateCSV_Click(object sender, RoutedEventArgs e)
         {
-            StringBuilder sb = new StringBuilder();
+            string mask = string.Empty;
 
-            AddCSVJunk(activeFile);
-            FormatCSVtoFile(sb);
+            foreach (string testTab in lbx_TabNames.SelectedItems)
+            {
+                activeTestStep = testTab.Replace("TEST_", "");
+                //string mask = activeFilePath.Substring(0, 5);
+                try
+                {
+                    mask = System.IO.Path.GetFileNameWithoutExtension(activeFilePath).Substring(0, 5);
+                }
+                catch (System.ArgumentOutOfRangeException e1)
+                {
+                    System.Windows.MessageBox.Show(e1.ToString(), "Mask Number not contained in Filename");
+                    break;
+                }
 
-            File.WriteAllText("C:\\Users\\zb024007\\Documents\\SampleCSV.csv", sb.ToString());
-
+                updateHeaderTemplate(mask + "_" + activeTestStep);
+                activeSheet = Parse78x(activeFilePath.ToString(), activeBookTestStepDict[testTab]);
+                StringBuilder sb = new StringBuilder();
+                AddCSVJunk(activeSheet);
+                FormatCSVtoFile(sb);
+                string outputFilename = "C:\\Users\\zb024007\\Documents\\";
+                File.WriteAllText(outputFilename + mask + "_" + activeTestStep + " Limits.csv", sb.ToString());
+            };
         }
 
         private void btn_LoadDoc_Click(object sender, RoutedEventArgs e)
         {
-            OpenFileDialog openFileDialog1 = new OpenFileDialog
+            using (OpenFileDialog openFileDialog1 = new OpenFileDialog
             {
                 InitialDirectory = "C:\\Users\\zb024007\\Documents",
                 Filter = "Excel Files (*.xlsx)|*.xlsx|All files (*.*)|*.*",
                 FilterIndex = 1,
                 RestoreDirectory = true
-            };
-
-            if (openFileDialog1.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            {
-                activeFile = Parse780(openFileDialog1.FileName.ToString());
             }
-            else
-            {
-                System.Windows.MessageBox.Show("Failed to open File.");
-            }
+            )
+                if (openFileDialog1.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    activeFilePath = openFileDialog1.FileName.ToString();
+                    activeBookTestStepDict = Get78xTabNames(activeFilePath);
+                    lbx_TabNames.Items.Clear();
+                    foreach (string s in activeBookTestStepDict.Keys)
+                    {
+                        lbx_TabNames.Items.Add(s);
+                    }
+                    //lbx_TabNames.Items.Add(activeBookTestStepDict.Values);
+                }
+                else
+                {
+                    System.Windows.MessageBox.Show("Failed to open File.");
+                }
         }
         private void AddCSVJunk(List<List<string>> activeFile)
         {
@@ -94,10 +102,38 @@ namespace SAWDocConverter
             activeFile.Insert(8, FillList(listSize, "0"));
             activeFile.Insert(9, FillList(listSize, "0"));
             activeFile.Insert(10, FillList(listSize, "0"));
-            activeFile.Insert(11, FillList(listSize, ""));
+            activeFile.Insert(11, FillList(listSize, "0"));
             activeFile.Insert(12, FillList(listSize, ""));
-            activeFile.Insert(13, FillList(listSize, "0"));
+            activeFile.Insert(13, FillList(listSize, ""));
             activeFile.Insert(14, FillList(listSize, "0"));
+            activeFile.Insert(15, FillList(listSize, "0"));
+        }
+
+
+        public void updateHeaderTemplate(string step)
+        {
+            headerTemplate = new List<string>()
+            {
+                "Enabled?",
+                "Test Number",
+                "Test Name",
+                "Test Units",
+                "Decimal Places",
+                "Offset",
+                "Failing Soft Bin",
+                "Lower Guardband",
+                "Upper Guardband",
+                "BCS Enable",
+                "Lower CU Tolerance",
+                "Upper CU Tolerance",
+                "Empty Socket LL",
+                "Empty Socket UL",
+                "PAT Lower Sigma Multiplier",
+                "PAT Upper Sigma Multiplier",
+                step + " LL",
+                step + " UL"
+            };
+
         }
 
         private static List<string> FillList(int size, string filler)
@@ -112,23 +148,117 @@ namespace SAWDocConverter
         }
         private void FormatCSVtoFile(StringBuilder sb)
         {
+            string last = headerTemplate.Last();
             foreach (string s in headerTemplate)
             {
-                sb.Append(s + ',');
+                if (s != last)
+                {
+                    sb.Append(s + ','); //end of line
+                }
+                else
+                {
+                    sb.Append(s);
+                }
             }
             sb.AppendLine();
 
-            for (int i = 0; i < activeFile[0].Count; i++)
+            for (int i = 0; i < activeSheet[0].Count; i++)
             {
-                for (int j = 0; j < activeFile.Count; j++)
+                for (int j = 0; j < activeSheet.Count; j++)
                 {
-                    sb.Append(activeFile[j][i] + ',');
+                    if (j == (activeSheet.Count - 1))
+                    {
+                        sb.Append(activeSheet[j][i]); //end of line
+                    }
+                    else
+                    {
+                        sb.Append(activeSheet[j][i] + ',');
+                    }
                 }
 
                 sb.AppendLine();
             }
         }
-        private List<List<string>> Parse780(string fn)
+
+        private Dictionary<string, int> Get78xTabNames(string fn)
+        {
+            Excel.Application xlApp;
+            Excel.Workbook xlWorkBook;
+            Excel.Worksheet xlWorkSheet;
+            object misValue = System.Reflection.Missing.Value;
+
+            xlApp = new Excel.Application();
+            xlWorkBook = xlApp.Workbooks.Open(fn);
+            xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(1); // 4 = 1st tab (SAWSORT tab in 780 or IDT tab in 785)
+
+            Dictionary<string, int> tabNames = new Dictionary<string, int>();
+
+            //foreach (Excel.Worksheet worksheet in xlWorkBook) --> no def for GetEnumerator
+
+            for (int i = 1; i < 8; i++)
+            {
+                try
+                {
+                    xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(i);
+                }
+                catch (System.Runtime.InteropServices.COMException e)
+                {
+                    System.Windows.MessageBox.Show(e.ToString());
+                    break;
+                }
+
+                tabNames.Add(Convert.ToString(xlWorkSheet.Name), i);
+            };
+
+            //tabNames.RemoveAll(x => x == null); --> Does not work for dictionaries, should be no null values if caught correctly above
+
+            //Cleanup
+            xlWorkBook.Close(true, misValue, misValue);
+            xlApp.Quit();
+
+            ReleaseObject(xlWorkSheet);
+            ReleaseObject(xlWorkBook);
+            ReleaseObject(xlApp);
+
+            return tabNames;
+        }
+
+        private List<string> Get78xTestSteps(string fn, int sheetIndex)
+        {
+            Excel.Application xlApp;
+            Excel.Workbook xlWorkBook;
+            Excel.Worksheet xlWorkSheet;
+            object misValue = System.Reflection.Missing.Value;
+
+            xlApp = new Excel.Application();
+            xlWorkBook = xlApp.Workbooks.Open(fn);
+            xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(sheetIndex); // 4 = 1st tab (SAWSORT tab in 780 or IDT tab in 785)
+
+            //ExcelShowCellContents(xlWorkSheet, "E3");
+
+            List<string> testStepNames = new List<string>
+            {
+                Convert.ToString(xlWorkSheet.get_Range("E3").Value2),
+                Convert.ToString(xlWorkSheet.get_Range("H3").Value2),
+                Convert.ToString(xlWorkSheet.get_Range("K3").Value2),
+                Convert.ToString(xlWorkSheet.get_Range("N3").Value2)
+            };
+
+            testStepNames.RemoveAll(x => x == null);
+            testStepNames = testStepNames.Where(x => x.ToString() != "FREQ_").ToList();
+
+            //Cleanup
+            xlWorkBook.Close(true, misValue, misValue);
+            xlApp.Quit();
+
+            ReleaseObject(xlWorkSheet);
+            ReleaseObject(xlWorkBook);
+            ReleaseObject(xlApp);
+
+            return testStepNames;
+        }
+
+        private List<List<string>> Parse78x(string fn, int sheetIndex)
         {
             Excel.Application xlApp;
             Excel.Workbook xlWorkBook;
@@ -140,7 +270,7 @@ namespace SAWDocConverter
             //xlWorkBook = xlApp.Workbooks.Open(@"C:\Users\zb024007\Documents\780.xlsx"); <-- alternate method
             xlWorkBook = xlApp.Workbooks.Open(fn);
             //xlWorkBook = xlApp.Workbooks.Open(@"d:\csharp-Excel.xls", 0, true, 5, "", "", true, Excel.XlPlatform.xlWindows, "\t", false, false, 0, true, 1, 0); <-- alternate method
-            xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(4); //SAWSORT tab in 780
+            xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(sheetIndex); //1st tab is 4
 
             int maxRows = 250; //max number of parameters
             int headerOffset = 5; // 4 rows allocated for header + 1-based index for spreadsheet
@@ -228,6 +358,9 @@ namespace SAWDocConverter
             }
         }
 
-
+        private void ListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            //need anything?
+        }
     }
 }

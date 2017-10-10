@@ -9,6 +9,8 @@
     <Grid>
         <Button x:Name="btn_LoadDoc" Content="Load" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="75" Click="btn_LoadDoc_Click"/>
         <Button x:Name="btn_CreateCSV" Content="Create" HorizontalAlignment="Left" Margin="10,52,0,0" VerticalAlignment="Top" Width="75" Click="btn_CreateCSV_Click"/>
-
+        <ListBox x:Name="lbx_TabNames" HorizontalAlignment="Left" Height="100" Margin="122,10,0,0" VerticalAlignment="Top" Width="160" SelectionMode="Multiple" SelectionChanged="ListBox_SelectionChanged">
+            <ListBoxItem Content="ListBoxItem"/>
+        </ListBox>
     </Grid>
 </Window>
