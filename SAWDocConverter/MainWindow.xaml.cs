@@ -26,8 +26,7 @@ namespace SAWDocConverter
     public partial class MainWindow : System.Windows.Window
     {
         public List<List<string>> activeSheet { get; private set; }
-        public static Dictionary<string, int> activeBookTestStepDict { get; private set; }
-        //public static List<string> activeSheetAllTestSteps { get; private set; }
+        public static Dictionary<Dictionary<string, int>, int> activeBookTabAndTestStepDict { get; private set; }
         public static string activeTestStep { get; private set; }
         public static string activeFilePath { get; private set; }
         public List<string> activeFileTabNames { get; private set; }
@@ -43,20 +42,46 @@ namespace SAWDocConverter
 
             foreach (string testTab in lbx_TabNames.SelectedItems)
             {
-                activeTestStep = testTab.Replace("TEST_", "");
-                //string mask = activeFilePath.Substring(0, 5);
+                activeTestStep = testTab.Replace("FREQ_", "");
                 try
                 {
-                    mask = System.IO.Path.GetFileNameWithoutExtension(activeFilePath).Substring(0, 5);
+                    mask = System.IO.Path.GetFileNameWithoutExtension(activeFilePath).Substring(0, 5); //assuming filename is same as saved in DocCenter
                 }
                 catch (System.ArgumentOutOfRangeException e1)
                 {
-                    System.Windows.MessageBox.Show(e1.ToString(), "Mask Number not contained in Filename");
+                    System.Windows.MessageBox.Show(e1.ToString(), "Mask Number not contained in Filename"); //file too short
                     break;
                 }
 
                 updateHeaderTemplate(mask + "_" + activeTestStep);
-                activeSheet = Parse78x(activeFilePath.ToString(), activeBookTestStepDict[testTab]);
+
+                int index = 0;
+                int offset = 0;
+
+                foreach (var k in activeBookTabAndTestStepDict.Keys)
+                {
+                    if (k.ContainsKey(testTab))
+                    {
+                        index = activeBookTabAndTestStepDict[k];
+                        k.TryGetValue(testTab, out offset);
+                        //offset =
+                        break;
+                    }
+                }
+
+                activeSheet = Parse78x(activeFilePath, index, offset);
+
+                //Dictionary<string, int> match = (Dictionary <string, int>) activeBookTabAndTestStepDict.Where(p => p.Value.ToString() == activeTestStep).Select(p => p.Key);
+
+                //var match = activeBookTabAndTestStepDict.Values.Where(p => p  ).Select(p => p.Key));
+
+
+                //activeSheet = Parse78x(activeFilePath, activeBookTabAndTestStepDict.Keys. )
+
+                //Get78xTestSteps()
+                //activeSheet = Parse78x(activeFilePath, activeBookTestStepDict[]
+                //activeSheet = Parse78x(activeFilePath.ToString(), activeBookTestStepDict[testTab]);
+
                 StringBuilder sb = new StringBuilder();
                 AddCSVJunk(activeSheet);
                 FormatCSVtoFile(sb);
@@ -78,19 +103,83 @@ namespace SAWDocConverter
                 if (openFileDialog1.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
                     activeFilePath = openFileDialog1.FileName.ToString();
-                    activeBookTestStepDict = Get78xTabNames(activeFilePath);
-                    lbx_TabNames.Items.Clear();
-                    foreach (string s in activeBookTestStepDict.Keys)
+                    activeBookTabAndTestStepDict = Get78xTabsAndSteps(activeFilePath);
+
+
+                    var temp = activeBookTabAndTestStepDict;
+
+                    foreach (Dictionary<string, int> k in temp.Keys.ToList() )
                     {
-                        lbx_TabNames.Items.Add(s);
+                        if (k.Count == 0)
+                        {
+                            activeBookTabAndTestStepDict.Remove(k);
+                        }
                     }
-                    //lbx_TabNames.Items.Add(activeBookTestStepDict.Values);
+
+                    lbx_TabNames.Items.Clear();
+
+                    foreach (Dictionary<string,int> dict1 in activeBookTabAndTestStepDict.Keys)
+                    {
+                        foreach(string testStep in dict1.Keys)
+                        {
+                            lbx_TabNames.Items.Add(testStep);
+                        }
+                    }
+
+                    //foreach (Dictionary<string,int> tabDict in activeBookTabAndTestStepDict.Keys)
+                    //{
+                    //    foreach (Dictionary<string, int> stepDict in Get78xTestSteps(activeFilePath, activeBookTabAndTestStepDict[tabDict]))
+                    //    {
+                    //        lbx_TabNames.Items.Add(s);
+                    //    }
+                    //}
                 }
                 else
                 {
                     System.Windows.MessageBox.Show("Failed to open File.");
                 }
         }
+
+        private Dictionary<Dictionary<string, int>, int> Get78xTabsAndSteps(string fn)
+        {
+            Excel.Application xlApp;
+            Excel.Workbook xlWorkBook;
+            Excel.Worksheet xlWorkSheet;
+            object misValue = System.Reflection.Missing.Value;
+
+            xlApp = new Excel.Application();
+            xlWorkBook = xlApp.Workbooks.Open(fn);
+            xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(1);
+
+            Dictionary<Dictionary<string, int>, int> tabsAndSteps = new Dictionary<Dictionary<string, int>, int>();
+
+            for (int i = 1; i < 8; i++) //max 8 tabs
+            {
+                try
+                {
+                    xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(i);
+                }
+                catch (System.Runtime.InteropServices.COMException e)
+                {
+                    System.Windows.MessageBox.Show(e.ToString());
+                    break;
+                }
+                tabsAndSteps.Add(Get78xTestSteps(fn, i), i);
+            };
+
+            //tabNames.RemoveAll(x => x == null); --> Does not work for dictionaries, should be no null values if caught correctly above
+
+            //Cleanup
+            xlWorkBook.Close(true, misValue, misValue);
+            xlApp.Quit();
+
+            ReleaseObject(xlWorkSheet);
+            ReleaseObject(xlWorkBook);
+            ReleaseObject(xlApp);
+
+            return tabsAndSteps;
+        }
+
         private void AddCSVJunk(List<List<string>> activeFile)
         {
             int listSize = activeFile[0].Count;
@@ -108,7 +197,6 @@ namespace SAWDocConverter
             activeFile.Insert(14, FillList(listSize, "0"));
             activeFile.Insert(15, FillList(listSize, "0"));
         }
-
 
         public void updateHeaderTemplate(string step)
         {
@@ -189,7 +277,7 @@ namespace SAWDocConverter
 
             xlApp = new Excel.Application();
             xlWorkBook = xlApp.Workbooks.Open(fn);
-            xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(1); // 4 = 1st tab (SAWSORT tab in 780 or IDT tab in 785)
+            xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(1);
 
             Dictionary<string, int> tabNames = new Dictionary<string, int>();
 
@@ -206,7 +294,6 @@ namespace SAWDocConverter
                     System.Windows.MessageBox.Show(e.ToString());
                     break;
                 }
-
                 tabNames.Add(Convert.ToString(xlWorkSheet.Name), i);
             };
 
@@ -223,7 +310,7 @@ namespace SAWDocConverter
             return tabNames;
         }
 
-        private List<string> Get78xTestSteps(string fn, int sheetIndex)
+        private Dictionary<string, int> Get78xTestSteps(string fn, int sheetIndex)
         {
             Excel.Application xlApp;
             Excel.Workbook xlWorkBook;
@@ -234,18 +321,35 @@ namespace SAWDocConverter
             xlWorkBook = xlApp.Workbooks.Open(fn);
             xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(sheetIndex); // 4 = 1st tab (SAWSORT tab in 780 or IDT tab in 785)
 
-            //ExcelShowCellContents(xlWorkSheet, "E3");
-
-            List<string> testStepNames = new List<string>
+            Dictionary<string, int> testStepNames = new Dictionary<string, int>();
             {
-                Convert.ToString(xlWorkSheet.get_Range("E3").Value2),
-                Convert.ToString(xlWorkSheet.get_Range("H3").Value2),
-                Convert.ToString(xlWorkSheet.get_Range("K3").Value2),
-                Convert.ToString(xlWorkSheet.get_Range("N3").Value2)
-            };
+                if(Convert.ToString(xlWorkSheet.get_Range("E3").Value2) != null)
+                {
+                    testStepNames.Add(Convert.ToString(xlWorkSheet.get_Range("E3").Value2), 0);
+                }
+                if (Convert.ToString(xlWorkSheet.get_Range("H3").Value2) != null)
+                {
+                    testStepNames.Add(Convert.ToString(xlWorkSheet.get_Range("H3").Value2), 3);
+                }
+                if (Convert.ToString(xlWorkSheet.get_Range("K3").Value2) != null)
+                {
+                    testStepNames.Add(Convert.ToString(xlWorkSheet.get_Range("K3").Value2), 6);
+                }
+                if (Convert.ToString(xlWorkSheet.get_Range("N3").Value2) != null)
+                {
+                    testStepNames.Add(Convert.ToString(xlWorkSheet.get_Range("N3").Value2), 9);
+                }
+                //testStepNames.Add(Convert.ToString(xlWorkSheet.get_Range("E3").Value2), 0);
+                //testStepNames.Add(Convert.ToString(xlWorkSheet.get_Range("H3").Value2), 3);
+                //testStepNames.Add(Convert.ToString(xlWorkSheet.get_Range("K3").Value2), 6);
+                //testStepNames.Add(Convert.ToString(xlWorkSheet.get_Range("N3").Value2), 9);
+            }
 
-            testStepNames.RemoveAll(x => x == null);
-            testStepNames = testStepNames.Where(x => x.ToString() != "FREQ_").ToList();
+            //RemoveNulls(testStepNames); --> no longer need?
+
+
+            //testStepNames.RemoveAll(x => x == null);
+            //testStepNames = testStepNames.Where(x => x.ToString() != "FREQ_").ToList();
 
             //Cleanup
             xlWorkBook.Close(true, misValue, misValue);
@@ -258,7 +362,15 @@ namespace SAWDocConverter
             return testStepNames;
         }
 
-        private List<List<string>> Parse78x(string fn, int sheetIndex)
+        private void RemoveNulls(Dictionary<string, int> dict)
+        {
+            throw new NotImplementedException();
+            //dict = (from kv in dict
+            //        where kv.Key != null
+            //        select kv).ToDictionary(kv => kv.Key, kv => kv.Value);
+        }
+
+        private List<List<string>> Parse78x(string fn, int sheetIndex, int testStepIndexOffset)
         {
             Excel.Application xlApp;
             Excel.Workbook xlWorkBook;
@@ -282,14 +394,18 @@ namespace SAWDocConverter
 
             maxRows = numList.Count() + headerOffset; //update max rows based on number of params found in first column, 1-based index
 
-            for (int i = 1; i < 6; i++) //6 columns for param name and limits
+            for (int i = 1; i < 4; i++) //6 columns for param name and limits (4 for names and no limits)
             {
-                activeCol = (char)(activeCol + 1); //next column
-                tableList.Add(ExcelColtoList(xlWorkSheet, activeCol, maxRows, headerOffset, false));
+                //activeCol = (char)(activeCol + 1); //next column
+                tableList.Add(ExcelColtoList(xlWorkSheet, ++activeCol, maxRows, headerOffset, false)); //increment column before using
             }
 
+            tableList.Add(ExcelColtoList(xlWorkSheet, (char)(++activeCol + testStepIndexOffset), maxRows, headerOffset, false)); //1st Spec Col
+            tableList.Add(ExcelColtoList(xlWorkSheet, (char)(activeCol + testStepIndexOffset + 1), maxRows, headerOffset, false)); //2nd Spec Col
+
+
             //Test Code
-            ExcelShowCellContents(xlWorkSheet, "E3"); //1st test type column is E3, 2nd column is H3...
+            //ExcelShowCellContents(xlWorkSheet, "E3"); //1st test type column is E3, 2nd column is H3...
 
             //Cleanup
             xlWorkBook.Close(true, misValue, misValue);
