@@ -441,7 +441,8 @@ namespace SAWDocConverter
 
             if (trimNulls) { numList.RemoveAll(item => item == null); }
 
-            System.Windows.MessageBox.Show(numList.Last());
+            //System.Windows.MessageBox.Show(numList.Last()); --> Test Code
+
             return numList;
         }
 
