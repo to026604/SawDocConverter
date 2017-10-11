@@ -71,21 +71,10 @@ namespace SAWDocConverter
 
                 activeSheet = Parse78x(activeFilePath, index, offset);
 
-                //Dictionary<string, int> match = (Dictionary <string, int>) activeBookTabAndTestStepDict.Where(p => p.Value.ToString() == activeTestStep).Select(p => p.Key);
-
-                //var match = activeBookTabAndTestStepDict.Values.Where(p => p  ).Select(p => p.Key));
-
-
-                //activeSheet = Parse78x(activeFilePath, activeBookTabAndTestStepDict.Keys. )
-
-                //Get78xTestSteps()
-                //activeSheet = Parse78x(activeFilePath, activeBookTestStepDict[]
-                //activeSheet = Parse78x(activeFilePath.ToString(), activeBookTestStepDict[testTab]);
-
                 StringBuilder sb = new StringBuilder();
                 AddCSVJunk(activeSheet);
                 FormatCSVtoFile(sb);
-                string outputFilename = "C:\\Users\\zb024007\\Documents\\";
+                string outputFilename = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
                 File.WriteAllText(outputFilename + mask + "_" + activeTestStep + " Limits.csv", sb.ToString());
             };
         }
@@ -94,7 +83,7 @@ namespace SAWDocConverter
         {
             using (OpenFileDialog openFileDialog1 = new OpenFileDialog
             {
-                InitialDirectory = "C:\\Users\\zb024007\\Documents",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 Filter = "Excel Files (*.xlsx)|*.xlsx|All files (*.*)|*.*",
                 FilterIndex = 1,
                 RestoreDirectory = true
@@ -126,13 +115,6 @@ namespace SAWDocConverter
                         }
                     }
 
-                    //foreach (Dictionary<string,int> tabDict in activeBookTabAndTestStepDict.Keys)
-                    //{
-                    //    foreach (Dictionary<string, int> stepDict in Get78xTestSteps(activeFilePath, activeBookTabAndTestStepDict[tabDict]))
-                    //    {
-                    //        lbx_TabNames.Items.Add(s);
-                    //    }
-                    //}
                 }
                 else
                 {
@@ -153,6 +135,18 @@ namespace SAWDocConverter
 
             Dictionary<Dictionary<string, int>, int> tabsAndSteps = new Dictionary<Dictionary<string, int>, int>();
 
+            /* Would like to be able to restrict number of tabs opened, but some documents in DocCenter contain the Instructions Tab
+            int tabcount = 0;
+            if (fn.Contains("780"))
+            {
+                tabcount = 6;
+            }
+            else if (fn.Contains("785"))
+            {
+                tabcount = 8;
+            }
+            */
+            
             for (int i = 1; i < 8; i++) //max 8 tabs
             {
                 try
@@ -161,7 +155,7 @@ namespace SAWDocConverter
                 }
                 catch (System.Runtime.InteropServices.COMException e)
                 {
-                    System.Windows.MessageBox.Show(e.ToString());
+                    //System.Windows.MessageBox.Show(e.ToString()); --> End of File
                     break;
                 }
                 tabsAndSteps.Add(Get78xTestSteps(fn, i), i);
@@ -223,7 +217,6 @@ namespace SAWDocConverter
             };
 
         }
-
         private static List<string> FillList(int size, string filler)
         {
             List<string> enabledList = new List<string>();
@@ -267,7 +260,11 @@ namespace SAWDocConverter
                 sb.AppendLine();
             }
         }
-
+        /// <summary>
+        /// Obsolete, not being used
+        /// </summary>
+        /// <param name="fn"></param>
+        /// <returns></returns>
         private Dictionary<string, int> Get78xTabNames(string fn)
         {
             Excel.Application xlApp;
@@ -277,7 +274,7 @@ namespace SAWDocConverter
 
             xlApp = new Excel.Application();
             xlWorkBook = xlApp.Workbooks.Open(fn);
-            xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(1);
+            xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(  1);
 
             Dictionary<string, int> tabNames = new Dictionary<string, int>();
 
@@ -339,17 +336,9 @@ namespace SAWDocConverter
                 {
                     testStepNames.Add(Convert.ToString(xlWorkSheet.get_Range("N3").Value2), 9);
                 }
-                //testStepNames.Add(Convert.ToString(xlWorkSheet.get_Range("E3").Value2), 0);
-                //testStepNames.Add(Convert.ToString(xlWorkSheet.get_Range("H3").Value2), 3);
-                //testStepNames.Add(Convert.ToString(xlWorkSheet.get_Range("K3").Value2), 6);
-                //testStepNames.Add(Convert.ToString(xlWorkSheet.get_Range("N3").Value2), 9);
             }
 
             //RemoveNulls(testStepNames); --> no longer need?
-
-
-            //testStepNames.RemoveAll(x => x == null);
-            //testStepNames = testStepNames.Where(x => x.ToString() != "FREQ_").ToList();
 
             //Cleanup
             xlWorkBook.Close(true, misValue, misValue);
